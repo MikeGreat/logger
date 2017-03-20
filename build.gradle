@@ -17,6 +17,11 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+
+    lintOptions {
+        abortOnError false
+    }
+
 }
 
 group = 'com.smargav'
@@ -25,7 +30,8 @@ version = '1.0'
 uploadArchives {
     repositories {
         mavenDeployer {
-            repository(url: "file:///${System.properties['user.home']}/.m2/repository")
+            //repository(url: "file:///${System.properties['user.home']}/.m2/repository")
+            repository(url: "file:///Users/amu/Work/Code/Smargav/libs/logger/dist")
         }
     }
 }
