@@ -17,20 +17,26 @@ import java.util.Date;
 @SuppressWarnings(value = {"rawtypes"})
 public class AppLogger {
 
+    public static boolean DEBUG = false;
     private Logger logger = LoggerFactory.getLogger();
     private File logFile;
 
-    private String RELATIVE_LOG_DIR;
+    private String relativeLogDirPath;
     private long purgeDuration;
     private FileAppender fileAppender;
 
     private static boolean isInitialized = false;
 
     private static AppLogger INSTANCE;
+    private File mSdCardLogFolder;
 
-    public static boolean init(Context ctx, String logDir, long purgeDuration) {
+    public static boolean init(Context ctx, String logDir, long purgeDurationInMillis) {
+        return init(ctx, logDir, purgeDurationInMillis, Level.INFO);
+    }
+
+    public static boolean init(Context ctx, String logDir, long purgeDurationInMillis, Level loggingLevel) {
         if (INSTANCE == null) {
-            INSTANCE = new AppLogger(ctx, logDir, purgeDuration);
+            INSTANCE = new AppLogger(ctx, logDir, purgeDurationInMillis, loggingLevel);
         }
         return isInitialized;
     }
@@ -42,44 +48,44 @@ public class AppLogger {
         return INSTANCE;
     }
 
-    private AppLogger(Context ctx, String logDir, long purgeDuration) {
-        RELATIVE_LOG_DIR = logDir;
-        this.purgeDuration = purgeDuration;
-        initLogger(ctx);
+    private AppLogger(Context ctx, String logDir, long purgeDurationInMillis, Level level) {
+        relativeLogDirPath = logDir;
+        this.purgeDuration = purgeDurationInMillis;
+        initLogger(ctx, level);
     }
 
     private AppLogger() {
 
     }
 
-    private void initLogger(Context ctx) {
+    private void initLogger(Context ctx, Level level) {
 
         try {
 
-            File mSdCardLogFile = null;
+            mSdCardLogFolder = null;
             String externalStorageState = Environment.getExternalStorageState();
             if (externalStorageState.equals(Environment.MEDIA_MOUNTED)) {
                 File externalStorageDirectory = getExternalStorageDirectory(ctx);
                 if (externalStorageDirectory != null) {
-                    mSdCardLogFile = new File(externalStorageDirectory, RELATIVE_LOG_DIR);
+                    mSdCardLogFolder = new File(externalStorageDirectory, relativeLogDirPath);
                 }
             }
 
-            if (mSdCardLogFile == null) {
+            if (mSdCardLogFolder == null) {
                 Log.e("AppLogger", "Unable to initialze the Log File Appeneder");
                 return;
             }
 
-            if (!mSdCardLogFile.exists()) {
-                mSdCardLogFile.mkdirs();
+            if (!mSdCardLogFolder.exists()) {
+                mSdCardLogFolder.mkdirs();
             }
 
-            purgeLogs(mSdCardLogFile);
+            purgeLogs(mSdCardLogFolder);
 
             long date = System.currentTimeMillis();
 
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy_MM_dd");
-            String logFilePath = new File(mSdCardLogFile, dateFormat.format(date) + "_log.txt").getAbsolutePath();
+            String logFilePath = new File(mSdCardLogFolder, dateFormat.format(date) + "_log.txt").getAbsolutePath();
 
             fileAppender = new FileAppender();
             fileAppender.setFormatter(new LogFormatter());
@@ -89,7 +95,7 @@ public class AppLogger {
             logFile = fileAppender.getLogFile();
 
             logger.addAppender(fileAppender);
-            logger.setLevel(Level.INFO);
+            logger.setLevel(level);
 
 
             String versionName = ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0).versionName;
@@ -119,7 +125,7 @@ public class AppLogger {
             if (sdCard.exists() && sdCard.canWrite()) {
                 externalStorageDirectory = sdCard;
                 return externalStorageDirectory;
-            }else{
+            } else {
                 externalStorageDirectory = Environment
                         .getExternalStorageDirectory();
             }
@@ -151,10 +157,13 @@ public class AppLogger {
     public void error(Class c, String msg) {
         try {
             String tag = getClassName(c);
-            Log.e(tag, msg);
+            if (DEBUG) {
+                Log.e(tag, msg);
+            }
             checkFile();
-            if (logger != null)
+            if (logger != null) {
                 logger.error(tag + ": " + msg);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -163,7 +172,9 @@ public class AppLogger {
     public void error(Class c, Throwable e) {
         try {
             String tag = getClassName(c);
-            Log.e(tag, e.getMessage(), e);
+            if (DEBUG) {
+                Log.e(tag, e.getMessage(), e);
+            }
             checkFile();
             if (logger != null)
                 logger.error(tag + ": " + e.getLocalizedMessage(), e);
@@ -176,7 +187,9 @@ public class AppLogger {
     public void error(Class c, String msg, Throwable thr) {
         try {
             String tag = getClassName(c);
-            Log.e(tag, msg, thr);
+            if (DEBUG) {
+                Log.e(tag, msg, thr);
+            }
             checkFile();
             if (logger != null)
                 logger.error(tag + ": " + msg);
@@ -187,7 +200,10 @@ public class AppLogger {
 
     public void debug(Class c, String msg) {
         String tag = getClassName(c);
+
+        //if (DEBUG) {
         Log.d(tag, msg);
+        //}
         if (logger != null)
             logger.debug(tag + " - " + msg);
     }
@@ -195,7 +211,9 @@ public class AppLogger {
     public void warn(Class c, String msg) {
         try {
             String tag = getClassName(c);
-            Log.w(tag, msg);
+            if (DEBUG) {
+                Log.w(tag, msg);
+            }
             checkFile();
             if (logger != null)
                 logger.warn(tag + " - " + msg);
@@ -207,7 +225,9 @@ public class AppLogger {
     public void info(Class c, String msg) {
         try {
             String tag = getClassName(c);
-            Log.i(tag, msg);
+            if (DEBUG) {
+                Log.i(tag, msg);
+            }
             checkFile();
             if (logger != null)
                 logger.info(tag + " - " + msg);
@@ -227,7 +247,7 @@ public class AppLogger {
             File[] list = logDir.listFiles();
             // if file is older than 100 days delete.
             for (File file : list) {
-                if (file.lastModified() < System.currentTimeMillis() + purgeDuration) {
+                if (file.lastModified() + purgeDuration < System.currentTimeMillis()) {
                     file.delete();
                 }
             }
@@ -276,4 +296,18 @@ public class AppLogger {
         return "SGV [" + c.getSimpleName() + "] ";
     }
 
+//    public void sendLogsAsEmail(String subject, String emailContent, Context context, String... mailIds) {
+//        List<String> attachment = new ArrayList<String>();
+//
+//        if (mSdCardLogFolder != null && mSdCardLogFolder.exists()) {
+//            for (File file : mSdCardLogFolder.listFiles()) {
+//                attachment.add(file.getAbsolutePath());
+//            }
+//        }
+//
+//        Intent emailIntent = LogsMailer.getEmailIntent(mailIds, null, subject,
+//                emailContent, attachment);
+//        emailIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+//        context.startActivity(emailIntent);
+//    }
 }
