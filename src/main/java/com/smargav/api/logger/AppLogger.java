@@ -29,6 +29,7 @@ public class AppLogger {
 
     private static AppLogger INSTANCE;
     private File mSdCardLogFolder;
+    private Level level;
 
     public static boolean init(Context ctx, String logDir, long purgeDurationInMillis) {
         return init(ctx, logDir, purgeDurationInMillis, Level.INFO);
@@ -82,21 +83,7 @@ public class AppLogger {
 
             purgeLogs(mSdCardLogFolder);
 
-            long date = System.currentTimeMillis();
-
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy_MM_dd");
-            String logFilePath = new File(mSdCardLogFolder, dateFormat.format(date) + "_log.txt").getAbsolutePath();
-
-            fileAppender = new FileAppender();
-            fileAppender.setFormatter(new LogFormatter());
-            fileAppender.setAppend(true);
-            fileAppender.setFileName(logFilePath);
-
-            logFile = fileAppender.getLogFile();
-
-            logger.addAppender(fileAppender);
-            logger.setLevel(level);
-
+            createLogFile(level);
 
             String versionName = ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0).versionName;
             int versionCode = ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0).versionCode;
@@ -110,6 +97,35 @@ public class AppLogger {
             System.out.println("ex: " + ex);
         }
 
+    }
+
+    private void createLogFile(Level level) {
+
+        try {
+            this.level = level;
+
+            long date = System.currentTimeMillis();
+
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy_MM_dd");
+            String logFilePath = new File(mSdCardLogFolder, dateFormat.format(date) + "_log.txt").getAbsolutePath();
+
+            fileAppender = new FileAppender();
+            fileAppender.setFormatter(new LogFormatter());
+            fileAppender.setAppend(true);
+            fileAppender.setFileName(logFilePath);
+
+            logFile = fileAppender.getLogFile();
+
+            logger.removeAllAppenders();
+            logger.addAppender(fileAppender);
+            logger.setLevel(level);
+
+            fileAppender.open();
+
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     protected synchronized File getExternalStorageDirectory(Context mContext) {
@@ -150,6 +166,14 @@ public class AppLogger {
             if (!logFile.exists()) {
                 fileAppender.open();
             }
+
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy_MM_dd");
+
+            if (logFile.exists() && !logFile.getName().contains(dateFormat.format(new Date()))) {
+                AppLogger.e(getClass(), "Roll over file. New day.");
+                createLogFile(level);
+            }
+
         } catch (Exception e) {
         }
     }
