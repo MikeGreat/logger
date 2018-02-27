@@ -167,12 +167,11 @@ public class AppLogger {
                 fileAppender.open();
             }
 
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy_MM_dd");
-
-            if (logFile.exists() && !logFile.getName().contains(dateFormat.format(new Date()))) {
-                AppLogger.e(getClass(), "Roll over file. New day.");
-                createLogFile(level);
-            }
+//            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy_MM_dd");
+//            if (logFile.exists() && !logFile.getName().contains(dateFormat.format(new Date()))) {
+//                AppLogger.e(getClass(), "Roll over file. New day.");
+//                createLogFile(level);
+//            }
 
         } catch (Exception e) {
         }
